@@ -473,7 +473,6 @@ export default function AziendaPage() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [isSyncing, setIsSyncing] = useState(false);
 
-  // NUOVA LOGICA: Carica le iscrizioni dal database
   const fetchBatchesFromDb = async () => {
     if (!account?.address) return;
     setIsLoadingBatches(true);
@@ -505,13 +504,11 @@ export default function AziendaPage() {
     }
   };
   
-  // NUOVA LOGICA: Al login, legge i dati dell'azienda on-chain, li sincronizza su DB, e POI carica le iscrizioni
   useEffect(() => {
     const handleLoginAndDataFetch = async () => {
       if (account?.address && contributorData) {
         const [onChainName, onChainCredits, onChainStatus] = contributorData;
         try {
-          // Questo endpoint aggiorna o crea il documento dell'azienda in Firestore
           await fetch("/api/update-company-details", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -526,13 +523,11 @@ export default function AziendaPage() {
           console.error("Sincronizzazione dati azienda fallita:", err);
         }
         
-        // Solo dopo aver aggiornato i dati azienda, carichiamo le iscrizioni
         fetchBatchesFromDb();
       }
     };
 
     if (account?.address && prevAccountRef.current !== account.address) {
-        // Forza il refetch quando l'account cambia per ottenere dati freschi
         refetchContributorInfo();
     }
     handleLoginAndDataFetch();
@@ -573,7 +568,6 @@ export default function AziendaPage() {
     setSelectedFile(e.target.files?.[0] || null);
   };
 
-  // NUOVA LOGICA: Il pulsante Refresh legge da on-chain e aggiorna il DB
   const syncOnChainDataToDb = async () => {
     if (!account?.address) {
       alert("Connetti il wallet per sincronizzare.");
@@ -705,28 +699,18 @@ export default function AziendaPage() {
         }
       },
       onError: (error: any) => {
-        // 1. Stampa l'errore completo nella console per un'analisi approfondita
         console.error("--- ERRORE DETTAGLIATO TRANSAZIONE ---", error);
-
-        // 2. Costruisci un messaggio di errore dettagliato per l'utente
         let detailedMessage = "La transazione è fallita.\n\n";
-        
-        // Cerca la "reason" (motivo) dello smart contract, che è spesso annidata
         const reason = error.cause?.reason || error.reason || "Nessun motivo specifico trovato.";
         detailedMessage += `Motivo del Fallimento: ${reason}\n\n`;
-        
-        // Aggiungi il messaggio di errore principale
         detailedMessage += `Messaggio Tecnico: ${error.message}\n\n`;
-
-        // Aggiungi suggerimenti basati sull'errore
         if (reason.toLowerCase().includes("insufficient funds") || error.message.toLowerCase().includes("insufficient funds")) {
           detailedMessage += "SUGGERIMENTO DEBUG:\nL'errore 'insufficient funds' significa che il wallet che sta ESEGUENDO la transazione non ha MATIC per il gas. Se il Paymaster è attivo, la sponsorizzazione è fallita. Controlla i log del tuo Paymaster nella dashboard di Thirdweb per vedere perché ha rifiutato (es. limiti di gas, regole, saldo dello sponsor a zero).";
         } else if (reason.toLowerCase().includes("credits")) {
           detailedMessage += "SUGGERIMENTO DEBUG:\nL'errore proviene direttamente dallo smart contract e menziona i 'crediti'. Controlla la logica di `require` nel tuo contratto e verifica che il valore dei crediti on-chain sia corretto.";
         } else if (error.message.toLowerCase().includes("user rejected")) {
-            detailedMessage += "SUGGERIMENTO DEBUG:\nLa transazione è stata annullata o rifiutata manualmente dal popup del wallet.";
+            detailedMessage += "SUGGERIMENTO DEBUG:\nLa transazione è stata annullata o rifiutata manually dal popup del wallet.";
         }
-
         setTxResult({
           status: "error",
           message: detailedMessage,
@@ -765,12 +749,12 @@ export default function AziendaPage() {
         <ConnectButton
           client={client}
           chain={polygon}
-          connectModal={{
+          accountAbstraction={{ // <-- POSIZIONE CORRETTA!
+            chain: polygon,
+            sponsorGas: true,
+          }}
+          connectModal={{ // <-- Ora contiene solo le sue opzioni
             size: "wide",
-            accountAbstraction: {
-              chain: polygon,
-              sponsorGas: true,
-            },
             wallets: [inAppWallet()],
           }}
           connectButton={{
