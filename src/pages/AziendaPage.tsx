@@ -667,11 +667,24 @@ export default function AziendaPage() {
     sendAndConfirmTransaction(transaction, {
       onSuccess: async (txResultData) => {
         setLoadingMessage("Sincronizzo con il database...");
+
+        // BLOCCO DI SICUREZZA AGGIUNTO
+        console.log("Transazione OK, oggetto risultato:", txResultData);
+        if (!txResultData || !txResultData.receipt) {
+            setTxResult({
+                status: "error",
+                message: `On-chain OK, ma la ricevuta non è stata trovata. La sincronizzazione è fallita. L'iscrizione è stata creata (Hash: ${txResultData.transactionHash}), ma non appare in lista. Prova a usare il pulsante 'Sincronizza Dati'.`,
+            });
+            setLoadingMessage("");
+            handleCloseModal();
+            return; 
+        }
+
         try {
           const receipt = txResultData.receipt;
           const events = parseEventLogs({ abi, logs: receipt.logs, eventName: "BatchInitialized" });
           if (events.length === 0 || !events[0].args.batchId) {
-            throw new Error("ID del nuovo batch non trovato.");
+            throw new Error("ID del nuovo batch non trovato negli eventi della transazione.");
           }
           const newBatchId = events[0].args.batchId;
           const response = await fetch("/api/add-batch", {
@@ -688,7 +701,10 @@ export default function AziendaPage() {
               companyName: contributorData?.[0] || "Azienda Generica",
             }),
           });
-          if (!response.ok) throw new Error("Errore salvataggio su DB.");
+          if (!response.ok) {
+            const errorBody = await response.text();
+            throw new Error(`Errore salvataggio su DB: ${errorBody}`);
+          }
           setTxResult({ status: "success", message: "Iscrizione creata e sincronizzata!" });
           await Promise.all([fetchBatchesFromDb(), refetchContributorInfo()]);
         } catch (error: any) {
@@ -709,7 +725,7 @@ export default function AziendaPage() {
         } else if (reason.toLowerCase().includes("credits")) {
           detailedMessage += "SUGGERIMENTO DEBUG:\nL'errore proviene direttamente dallo smart contract e menziona i 'crediti'. Controlla la logica di `require` nel tuo contratto e verifica che il valore dei crediti on-chain sia corretto.";
         } else if (error.message.toLowerCase().includes("user rejected")) {
-            detailedMessage += "SUGGERIMENTO DEBUG:\nLa transazione è stata annullata o rifiutata manually dal popup del wallet.";
+            detailedMessage += "SUGGERIMENTO DEBUG:\nLa transazione è stata annullata o rifiutata manualmente dal popup del wallet.";
         }
         setTxResult({
           status: "error",
@@ -749,11 +765,11 @@ export default function AziendaPage() {
         <ConnectButton
           client={client}
           chain={polygon}
-          accountAbstraction={{ // <-- POSIZIONE CORRETTA!
+          accountAbstraction={{
             chain: polygon,
             sponsorGas: true,
           }}
-          connectModal={{ // <-- Ora contiene solo le sue opzioni
+          connectModal={{
             size: "wide",
             wallets: [inAppWallet()],
           }}
