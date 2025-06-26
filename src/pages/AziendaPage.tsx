@@ -5,7 +5,6 @@ import {
   useActiveAccount,
   useReadContract,
   useSendAndConfirmTransaction,
-  useConnect,
 } from "thirdweb/react";
 import {
   createThirdwebClient,
@@ -14,7 +13,7 @@ import {
   readContract,
 } from "thirdweb";
 import { polygon } from "thirdweb/chains";
-import { inAppWallet, preauthenticate } from "thirdweb/wallets";
+import { inAppWallet } from "thirdweb/wallets";
 import { supplyChainABI as abi } from "../abi/contractABI";
 import "../App.css";
 import TransactionStatusModal from "../components/TransactionStatusModal";
@@ -23,6 +22,7 @@ import { parseEventLogs } from "viem";
 const client = createThirdwebClient({
   clientId: "e40dfd747fabedf48c5837fb79caf2eb",
 });
+
 const contract = getContract({
   client,
   chain: polygon,
@@ -72,6 +72,7 @@ const AziendaPageStyles = () => (
     }
   `}</style>
 );
+
 const RegistrationForm = () => (
   <div className="card">
     <h3>Benvenuto su Easy Chain!</h3>
@@ -81,6 +82,7 @@ const RegistrationForm = () => (
     </p>
   </div>
 );
+
 interface BatchData {
   id: string;
   batchId: bigint;
@@ -90,6 +92,7 @@ interface BatchData {
   location: string;
   isClosed: boolean;
 }
+
 const RefreshIcon = () => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -105,6 +108,7 @@ const RefreshIcon = () => (
     <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466" />
   </svg>
 );
+
 const BatchRow = ({
   batch,
   localId,
@@ -115,15 +119,16 @@ const BatchRow = ({
   const [showDescription, setShowDescription] = useState(false);
   const { data: stepCount } = useReadContract({
     contract,
-    abi,
     method:
       "function getBatchStepCount(uint256 _batchId) view returns (uint256)",
     params: [batch.batchId],
   });
+
   const formatDate = (dateStr: string | undefined) =>
     !dateStr || dateStr.split("-").length !== 3
       ? "/"
       : dateStr.split("-").reverse().join("/");
+
   return (
     <>
       <tr className="desktop-row">
@@ -220,6 +225,7 @@ const BatchRow = ({
     </>
   );
 };
+
 const BatchTable = ({
   batches,
   nameFilter,
@@ -232,6 +238,7 @@ const BatchTable = ({
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsToShow, setItemsToShow] = useState(10);
   const MAX_PER_PAGE = 30;
+
   const totalPages = Math.max(1, Math.ceil(batches.length / MAX_PER_PAGE));
   const startIndex = (currentPage - 1) * MAX_PER_PAGE;
   const itemsOnCurrentPage = batches.slice(
@@ -239,17 +246,21 @@ const BatchTable = ({
     startIndex + MAX_PER_PAGE
   );
   const visibleBatches = itemsOnCurrentPage.slice(0, itemsToShow);
+
   useEffect(() => {
     setCurrentPage(1);
     setItemsToShow(10);
   }, [batches, nameFilter, locationFilter, statusFilter]);
+
   const handleLoadMore = () =>
     setItemsToShow((prev) => Math.min(prev + 10, MAX_PER_PAGE));
+
   const handlePageChange = (page: number) => {
     if (page < 1 || page > totalPages) return;
     setCurrentPage(page);
     setItemsToShow(10);
   };
+
   return (
     <div className="table-container">
       <table className="company-table">
@@ -350,6 +361,7 @@ const BatchTable = ({
     </div>
   );
 };
+
 const DashboardHeader = ({
   contributorInfo,
   onNewInscriptionClick,
@@ -365,6 +377,7 @@ const DashboardHeader = ({
 }) => {
   const companyName = contributorInfo[0] || "Azienda";
   const credits = contributorInfo[1].toString();
+
   return (
     <div className="dashboard-header-card">
       <div className="dashboard-header-info">
@@ -411,12 +424,14 @@ const DashboardHeader = ({
     </div>
   );
 };
+
 const getInitialFormData = () => ({
   name: "",
   description: "",
   date: "",
   location: "",
 });
+
 const truncateText = (text: string, maxLength: number) => {
   if (!text) return text;
   return text.length > maxLength
@@ -526,7 +541,7 @@ export default function AziendaPage() {
       window.location.href = "/";
     }
     prevAccountRef.current = account?.address;
-  }, [account, contributorData]);
+  }, [account, contributorData, refetchContributorInfo]);
 
 
   useEffect(() => {
@@ -553,6 +568,7 @@ export default function AziendaPage() {
   ) => {
     setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
+  
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedFile(e.target.files?.[0] || null);
   };
@@ -568,14 +584,15 @@ export default function AziendaPage() {
       status: "loading",
       message: "Leggendo i dati dalla blockchain...",
     });
+
     try {
       const onChainIds = (await readContract({
         contract,
-        abi,
         method:
           "function getBatchesByContributor(address) view returns (uint256[])",
         params: [account.address],
       })) as bigint[];
+
       if (onChainIds.length === 0) {
         setTxResult({
           status: "success",
@@ -585,14 +602,15 @@ export default function AziendaPage() {
         setIsSyncing(false);
         return;
       }
+
       setTxResult({
         status: "loading",
         message: `Trovate ${onChainIds.length} iscrizioni on-chain. Sincronizzazione in corso...`,
       });
+
       const syncPromises = onChainIds.map(async (batchId) => {
         const info = await readContract({
           contract,
-          abi,
           method:
             "function getBatchInfo(uint256) view returns (uint256,address,string,string,string,string,string,string,bool)",
           params: [batchId],
@@ -612,6 +630,7 @@ export default function AziendaPage() {
           }),
         });
       });
+
       await Promise.all(syncPromises);
       await fetchBatchesFromDb();
       setTxResult({
@@ -636,12 +655,11 @@ export default function AziendaPage() {
     setLoadingMessage("Preparazione transazione...");
     let imageIpfsHash = "N/A";
     if (selectedFile) {
-        // ... (Logica di upload file)
+      // ... (Logica di upload file)
     }
     setLoadingMessage("Transazione in corso, attendi la conferma...");
     const transaction = prepareContractCall({
       contract,
-      abi,
       method: "function initializeBatch(string,string,string,string,string)",
       params: [
         formData.name,
@@ -651,16 +669,13 @@ export default function AziendaPage() {
         imageIpfsHash,
       ],
     });
+
     sendAndConfirmTransaction(transaction, {
       onSuccess: async (txResultData) => {
         setLoadingMessage("Sincronizzo con il database...");
         try {
           const receipt = txResultData.receipt;
-          const events = parseEventLogs({
-            abi,
-            logs: receipt.logs,
-            eventName: "BatchInitialized",
-          });
+          const events = parseEventLogs({ abi, logs: receipt.logs, eventName: "BatchInitialized" });
           if (events.length === 0 || !events[0].args.batchId) {
             throw new Error("ID del nuovo batch non trovato.");
           }
@@ -680,27 +695,41 @@ export default function AziendaPage() {
             }),
           });
           if (!response.ok) throw new Error("Errore salvataggio su DB.");
-          setTxResult({
-            status: "success",
-            message: "Iscrizione creata e sincronizzata!",
-          });
+          setTxResult({ status: "success", message: "Iscrizione creata e sincronizzata!" });
           await Promise.all([fetchBatchesFromDb(), refetchContributorInfo()]);
         } catch (error: any) {
-          setTxResult({
-            status: "error",
-            message: `On-chain OK, ma sync fallita: ${error.message}`,
-          });
+          setTxResult({ status: "error", message: `On-chain OK, ma sync fallita: ${error.message}` });
         } finally {
           setLoadingMessage("");
           handleCloseModal();
         }
       },
-      onError: (err) => {
+      onError: (error: any) => {
+        // 1. Stampa l'errore completo nella console per un'analisi approfondita
+        console.error("--- ERRORE DETTAGLIATO TRANSAZIONE ---", error);
+
+        // 2. Costruisci un messaggio di errore dettagliato per l'utente
+        let detailedMessage = "La transazione è fallita.\n\n";
+        
+        // Cerca la "reason" (motivo) dello smart contract, che è spesso annidata
+        const reason = error.cause?.reason || error.reason || "Nessun motivo specifico trovato.";
+        detailedMessage += `Motivo del Fallimento: ${reason}\n\n`;
+        
+        // Aggiungi il messaggio di errore principale
+        detailedMessage += `Messaggio Tecnico: ${error.message}\n\n`;
+
+        // Aggiungi suggerimenti basati sull'errore
+        if (reason.toLowerCase().includes("insufficient funds") || error.message.toLowerCase().includes("insufficient funds")) {
+          detailedMessage += "SUGGERIMENTO DEBUG:\nL'errore 'insufficient funds' significa che il wallet che sta ESEGUENDO la transazione non ha MATIC per il gas. Se il Paymaster è attivo, la sponsorizzazione è fallita. Controlla i log del tuo Paymaster nella dashboard di Thirdweb per vedere perché ha rifiutato (es. limiti di gas, regole, saldo dello sponsor a zero).";
+        } else if (reason.toLowerCase().includes("credits")) {
+          detailedMessage += "SUGGERIMENTO DEBUG:\nL'errore proviene direttamente dallo smart contract e menziona i 'crediti'. Controlla la logica di `require` nel tuo contratto e verifica che il valore dei crediti on-chain sia corretto.";
+        } else if (error.message.toLowerCase().includes("user rejected")) {
+            detailedMessage += "SUGGERIMENTO DEBUG:\nLa transazione è stata annullata o rifiutata manualmente dal popup del wallet.";
+        }
+
         setTxResult({
           status: "error",
-          message: err.message.toLowerCase().includes("insufficient funds")
-            ? "Crediti Insufficienti"
-            : "Errore transazione.",
+          message: detailedMessage,
         });
         setLoadingMessage("");
       },
@@ -714,7 +743,9 @@ export default function AziendaPage() {
     setTxResult(null);
     setModal("init");
   };
+  
   const handleCloseModal = () => setModal(null);
+  
   const handleNextStep = () => {
     if (currentStep === 1 && !formData.name.trim()) {
       alert("Il campo 'Nome Iscrizione' è obbligatorio.");
@@ -722,6 +753,7 @@ export default function AziendaPage() {
     }
     if (currentStep < 6) setCurrentStep((prev) => prev + 1);
   };
+  
   const handlePrevStep = () => {
     if (currentStep > 1) setCurrentStep((prev) => prev - 1);
   };
@@ -764,6 +796,7 @@ export default function AziendaPage() {
         </p>
       );
     if (!contributorData[2]) return <RegistrationForm />;
+
     return (
       <>
         <DashboardHeader
