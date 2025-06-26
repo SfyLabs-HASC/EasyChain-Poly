@@ -10,11 +10,17 @@ const pageStyles: React.CSSProperties = {
   minHeight: '100vh',
 };
 
+const containerStyles: React.CSSProperties = {
+    maxWidth: '800px',
+    margin: '0 auto',
+};
+
 const counterStyles: React.CSSProperties = {
   fontSize: '5rem',
   fontWeight: 'bold',
   color: '#3b82f6',
-  margin: '1rem 0',
+  margin: '2rem 0',
+  lineHeight: 1,
 };
 
 const buttonStyles: React.CSSProperties = {
@@ -25,6 +31,7 @@ const buttonStyles: React.CSSProperties = {
   border: 'none',
   borderRadius: '8px',
   cursor: 'pointer',
+  marginTop: '1rem',
 };
 
 export default function CounterPage() {
@@ -32,14 +39,19 @@ export default function CounterPage() {
 
   return (
     <div style={pageStyles}>
-      <h1>Contatore Chiamate RPC</h1>
-      <p>Questo contatore traccia tutte le richieste di lettura on-chain (RPC Read Calls) effettuate dall'applicazione.</p>
-      <div style={counterStyles}>
-        {rpcCount}
+      <div style={containerStyles}>
+        <h1>Contatore Chiamate RPC</h1>
+        <p>Questo contatore traccia tutte le richieste di lettura on-chain (RPC Read Calls) effettuate dall'applicazione da quando è stata caricata o dall'ultimo reset.</p>
+        <p>È uno strumento utile per capire quante richieste vengono fatte alla blockchain durante la navigazione e l'uso delle varie funzionalità.</p>
+        
+        <div style={counterStyles}>
+          {rpcCount}
+        </div>
+
+        <button style={buttonStyles} onClick={resetRpcCount}>
+          Azzera Contatore
+        </button>
       </div>
-      <button style={buttonStyles} onClick={resetRpcCount}>
-        Azzera Contatore
-      </button>
     </div>
   );
 }
